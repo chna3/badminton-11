@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">학교 배드민턴 리그 관리 시스템</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700&display=swap');
+        body { font-family: 'Pretendard', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i data-lucide="feather" class="w-6 h-6 text-emerald-400"></i>
+                <h1 id="header-title" class="text-xl font-bold tracking-tight">2026 교내 배드민턴 챔피언십</h1>
+            </div>
+            <div class="flex items-center space-x-3 md:space-x-4">
+                <nav class="hidden md:flex space-x-6 text-sm font-medium">
+                    <button onclick="switchTab('home')" class="nav-btn text-emerald-400 hover:text-emerald-300 transition" data-target="home">홈</button>
+                    <button onclick="switchTab('standings')" class="nav-btn hover:text-emerald-300 transition" data-target="standings">순위표</button>
+                    <button onclick="switchTab('matches')" class="nav-btn hover:text-emerald-300 transition" data-target="matches">경기 일정/결과</button>
+                    <button onclick="switchTab('teams')" class="nav-btn hover:text-emerald-300 transition" data-target="teams">참가 팀</button>
+                </nav>
+                <!-- 실시간 동기화 표시 -->
+                <span class="hidden sm:flex items-center gap-1.5 text-[11px] text-emerald-300/90" title="다른 기기의 변경사항이 자동으로 반영됩니다">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> 실시간 동기화
+                </span>
+                <!-- 공유 및 링크 버튼 -->
+                <button onclick="openShareModal()" class="text-xs bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 text-emerald-300 font-medium">
+                    <i data-lucide="share-2" class="w-3.5 h-3.5"></i> 링크 공유 / QR
+                </button>
+                <!-- 관리자 토글 버튼 -->
+                <button onclick="toggleAdminMode()" id="admin-toggle-btn" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 text-slate-300">
+                    <i data-lucide="lock" class="w-3.5 h-3.5"></i> <span id="admin-btn-text">관리자 로그인</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 모바일 전용 탭 메뉴 (md 이상에서는 헤더 안의 nav를 사용하므로 숨김) -->
+    <nav class="md:hidden bg-slate-900 text-white border-t border-slate-800 overflow-x-auto">
+        <div class="flex text-sm font-medium min-w-max px-2">
+            <button onclick="switchTab('home')" class="nav-btn text-emerald-400 hover:text-emerald-300 transition px-4 py-3 whitespace-nowrap" data-target="home">홈</button>
+            <button onclick="switchTab('standings')" class="nav-btn hover:text-emerald-300 transition px-4 py-3 whitespace-nowrap" data-target="standings">순위표</button>
+            <button onclick="switchTab('matches')" class="nav-btn hover:text-emerald-300 transition px-4 py-3 whitespace-nowrap" data-target="matches">경기 일정/결과</button>
+            <button onclick="switchTab('teams')" class="nav-btn hover:text-emerald-300 transition px-4 py-3 whitespace-nowrap" data-target="teams">참가 팀</button>
+        </div>
+    </nav>
+
+    <!-- 다중 공유 모달 팝업 (링크 복사, 카카오톡, 이메일, QR 지원) -->
+    <div id="share-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl relative">
+            <h3 class="text-lg font-bold text-slate-800">리그 접속 공유하기</h3>
+            <p class="text-xs text-slate-500">학생들에게 주소를 복사해주거나 카카오톡으로 공유하세요.</p>
+            
+            <!-- 주소 입력 및 링크 복사 영역 -->
+            <div class="space-y-2 text-left">
+                <label class="text-xs font-semibold text-slate-600">공유할 웹 주소 (URL):</label>
+                <div class="flex gap-1.5">
+                    <input type="text" id="share-url-input" class="w-full p-2.5 border rounded-lg text-xs bg-slate-50 text-slate-600 outline-none focus:ring-2 focus:ring-emerald-500" placeholder="웹사이트 주소">
+                    <button onclick="copyShareUrl()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2.5 rounded-lg transition whitespace-nowrap flex items-center gap-1">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i> 복사
+                    </button>
+                </div>
+            </div>
+
+            <!-- 간편 공유 버튼 그리드 -->
+            <div class="grid grid-cols-2 gap-2 pt-1">
+                <button onclick="shareKakao()" class="bg-yellow-400 hover:bg-yellow-500 text-slate-900 text-xs font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-1.5">
+                    <i data-lucide="message-circle" class="w-4 h-4"></i> 카카오톡 공유
+                </button>
+                <button onclick="shareEmail()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-1.5">
+                    <i data-lucide="mail" class="w-4 h-4"></i> 이메일 보내기
+                </button>
+            </div>
+
+            <!-- QR 코드 영역 (접었다 펼치거나 하단 배치) -->
+            <div class="pt-2 border-t border-slate-100">
+                <details class="group text-left">
+                    <summary class="text-xs font-semibold text-slate-500 cursor-pointer hover:text-emerald-600 flex items-center justify-between py-1">
+                        <span>QR 코드가 필요하신가요? (클릭)</span>
+                        <i data-lucide="chevron-down" class="w-3.5 h-3.5 group-open:rotate-180 transition-transform"></i>
+                    </summary>
+                    <div class="pt-3 flex flex-col items-center space-y-2">
+                        <div id="qrcode-box" class="flex justify-center p-2 bg-slate-50 rounded-xl border border-slate-100 min-h-[150px] items-center">
+                            <!-- QR 이미지 -->
+                        </div>
+                        <button onclick="generateQR()" class="text-[11px] text-slate-500 hover:text-slate-800 underline">QR 새로고침</button>
+                    </div>
+                </details>
+            </div>
+
+            <button onclick="closeShareModal()" class="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-2.5 rounded-xl transition mt-2">닫기</button>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-6xl mx-auto px-4 py-8 w-full space-y-8">
+        
+        <!-- 홈 탭 -->
+        <section id="tab-home" class="tab-content space-y-6">
+            <div class="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-2xl p-8 text-white shadow-xl flex flex-col md:flex-row justify-between items-center">
+                <div class="space-y-4 mb-6 md:mb-0">
+                    <span class="bg-emerald-500/40 text-emerald-100 text-xs font-semibold px-3 py-1 rounded-full">OFFICIAL LEAGUE</span>
+                    <h2 id="home-banner-title" class="text-3xl md:text-4xl font-extrabold tracking-tight">최고의 스매시를 보여주세요!</h2>
+                    <p class="text-emerald-100 max-w-lg text-sm md:text-base">교내 배드민턴 리그 실시간 순위 및 경기 일정 플랫폼입니다.</p>
+                </div>
+                <div class="bg-white/10 backdrop-blur-md p-6 rounded-xl border border-white/20 text-center">
+                    <p class="text-xs text-emerald-200">현재 등록된 팀</p>
+                    <p id="home-team-count" class="text-3xl font-bold mt-1">0팀</p>
+                    <button onclick="switchTab('standings')" class="mt-4 bg-white text-emerald-800 text-xs font-bold px-4 py-2 rounded-lg shadow hover:bg-emerald-50 transition">순위표 확인하기</button>
+                </div>
+            </div>
+
+            <!-- 관리자 전용: 대회 타이틀 수정 폼 -->
+            <div id="admin-title-form" class="admin-only hidden bg-white p-6 rounded-2xl shadow-sm border border-emerald-200 bg-emerald-50/20 space-y-4">
+                <h3 class="font-bold text-base text-emerald-700 flex items-center gap-1.5"><i data-lucide="shield-check" class="w-4 h-4"></i> 대회 타이틀 수정 (관리자 전용)</h3>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <input type="text" id="league-title-input" placeholder="대회 이름을 입력하세요" class="md:col-span-3 p-3 border rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-emerald-500">
+                    <button onclick="updateLeagueTitle()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold p-3 rounded-xl transition text-sm">타이틀 변경</button>
+                </div>
+            </div>
+
+            <!-- 관리자 전용: 공지사항 추가 폼 -->
+            <div id="admin-notice-form" class="admin-only hidden bg-white p-6 rounded-2xl shadow-sm border border-emerald-200 bg-emerald-50/20 space-y-4">
+                <h3 class="font-bold text-base text-emerald-700 flex items-center gap-1.5"><i data-lucide="shield-check" class="w-4 h-4"></i> 공지사항 등록하기 (관리자 전용)</h3>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <input type="text" id="notice-title" placeholder="공지 내용 입력" class="md:col-span-3 p-3 border rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-emerald-500">
+                    <button onclick="addNotice()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold p-3 rounded-xl transition text-sm">공지 등록</button>
+                </div>
+            </div>
+
+            <!-- 공지사항 목록 -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="bell" class="w-5 h-5 text-emerald-600"></i> 대회 공지사항</h3>
+                <ul id="notice-container" class="space-y-3 text-sm text-slate-600">
+                    <!-- 동적 생성 -->
+                </ul>
+            </div>
+        </section>
+
+        <!-- 순위표 탭 -->
+        <section id="tab-standings" class="tab-content hidden space-y-6">
+            <div class="flex justify-between items-center">
+                <h2 class="text-2xl font-bold">실시간 순위표</h2>
+                <span class="text-xs text-slate-500">* 점수 입력 완료된 경기만 순위에 반영됩니다. (승점: 1승당 1점)</span>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 border-b text-slate-500 text-xs font-semibold">
+                            <th class="p-4">순위</th>
+                            <th class="p-4">팀명 (대표 선수)</th>
+                            <th class="p-4 text-center">경기</th>
+                            <th class="p-4 text-center">승</th>
+                            <th class="p-4 text-center">패</th>
+                            <th class="p-4 text-center">득실차</th>
+                            <th class="p-4 text-center">승점</th>
+                        </tr>
+                    </thead>
+                    <tbody id="standings-tbody" class="text-sm divide-y">
+                        <!-- 동적 생성 -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 경기 일정 및 결과 탭 -->
+        <section id="tab-matches" class="tab-content hidden space-y-6">
+            <h2 class="text-2xl font-bold">경기 일정 및 결과</h2>
+            
+            <!-- 관리자 전용: 경기 추가 폼 -->
+            <div id="admin-match-form" class="admin-only hidden bg-white p-6 rounded-2xl shadow-sm border border-emerald-200 bg-emerald-50/20 space-y-4">
+                <h3 id="match-form-title" class="font-bold text-base text-emerald-700 flex items-center gap-1.5"><i data-lucide="shield-check" class="w-4 h-4"></i> 경기 일정 등록 (점수 비워두면 경기 전 상태로 저장)</h3>
+                <input type="hidden" id="edit-match-id">
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-center">
+                    <input type="text" id="match-date" placeholder="경기 날짜 (예: 3월 12일)" class="p-3 border rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-emerald-500">
+                    <select id="match-team1" class="p-3 border rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-emerald-500">
+                        <option value="">팀 선택 (Home)</option>
+                    </select>
+                    <div class="flex items-center justify-center space-x-2">
+                        <input type="number" id="match-score1" placeholder="점수(선택)" class="w-20 p-3 border rounded-xl text-center text-sm bg-white outline-none focus:ring-2 focus:ring-emerald-500">
+                        <span class="font-bold">:</span>
+                        <input type="number" id="match-score2" placeholder="점수(선택)" class="w-20 p-3 border rounded-xl text-center text-sm bg-white outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <select id="match-team2" class="p-3 border rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-emerald-500">
+                        <option value="">팀 선택 (Away)</option>
+                    </select>
+                    <div class="flex gap-2">
+                        <button onclick="saveMatch()" id="match-submit-btn" class="flex-grow bg-emerald-600 hover:bg-emerald-700 text-white font-bold p-3 rounded-xl transition text-sm">일정 등록</button>
+                        <button onclick="resetMatchForm()" id="match-cancel-btn" class="hidden bg-slate-300 hover:bg-slate-400 text-slate-700 font-bold p-3 rounded-xl transition text-sm">취소</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 날짜별 그룹화된 경기 목록 -->
+            <div id="matches-container" class="space-y-6">
+                <!-- 동적 생성 -->
+            </div>
+        </section>
+
+        <!-- 참가 팀 관리 탭 -->
+        <section id="tab-teams" class="tab-content hidden space-y-6">
+            <h2 class="text-2xl font-bold">참가 팀 목록</h2>
+            
+            <!-- 관리자 전용: 팀 등록 폼 -->
+            <div id="admin-team-form" class="admin-only hidden bg-white p-6 rounded-2xl shadow-sm border border-emerald-200 bg-emerald-50/20 space-y-4">
+                <h3 class="font-bold text-base text-emerald-700 flex items-center gap-1.5"><i data-lucide="shield-check" class="w-4 h-4"></i> 새 팀 등록하기 (관리자 전용)</h3>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <input type="text" id="team-name" placeholder="팀명 입력 (예: 3학년 2반)" class="p-3 border rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-emerald-500">
+                    <input type="text" id="team-players" placeholder="대표 선수 이름 (예: 김철수, 이영희)" class="p-3 border rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-emerald-500">
+                    <input type="text" id="team-motto" placeholder="팀 각오 한마디 (선택)" class="p-3 border rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-emerald-500">
+                    <button onclick="addTeam()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold p-3 rounded-xl transition text-sm">팀 추가</button>
+                </div>
+            </div>
+
+            <!-- 팀 목록 카드 -->
+            <div id="teams-container" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- 동적 생성 -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-6 mt-12 text-center text-xs text-slate-400">
+        <p>© 2026 School Badminton League Platform. All rights reserved.</p>
+    </footer>
+
+    <!-- Interactive Script -->
+    <script>
+        let isAdmin = false;
+        const ADMIN_PASSWORD = "9820"; 
+
+        // ▼▼▼ 여기에 Firebase Realtime Database 주소를 붙여넣으세요 ▼▼▼
+        // 예: "https://my-league-default-rtdb.asia-southeast1.firebasedatabase.app"
+        const FIREBASE_URL = "https://ay-badnimton-default-rtdb.firebaseio.com";
+        const DATA_PATH = "badminton_league_data"; // 데이터가 저장될 경로 이름
+
+        // 모든 학생/기기가 함께 보는 "공유 데이터"
+        let leagueTitle = "2026 교내 배드민턴 챔피언십";
+        let teams = [
+            { id: '1', name: '3학년 2반', players: '김철수, 이영희', motto: '' },
+            { id: '2', name: '2학년 4반', players: '박민수, 오지훈', motto: '' },
+            { id: '3', name: '1학년 1반', players: '정민호, 강서연', motto: '' }
+        ];
+        let matches = [
+            { id: 'm1', date: '3월 10일', team1: '3학년 2반', team2: '2학년 4반', score1: 21, score2: 15 },
+            { id: 'm2', date: '3월 15일', team1: '1학년 1반', team2: '3학년 2반', score1: null, score2: null }
+        ];
+        let notices = [
+            { id: 'n1', title: '[안내] 경기 당일 실내화 및 개인 라켓 지참 필수', date: '03.10' },
+            { id: 'n2', title: '[규정] 예선 리그는 단판 21점 코트 체인지 적용', date: '03.08' },
+            { id: 'n3', title: '[문의] 학생회실 체육부 또는 스포츠클럽 담당 선생님', date: '03.05' }
+        ];
+
+        function firebaseReady() {
+            return FIREBASE_URL && !FIREBASE_URL.includes('여기에');
+        }
+
+        // Firebase에서 최신 데이터를 불러온다 (REST 방식, SDK 설치 불필요)
+        async function loadData() {
+            if (!firebaseReady()) {
+                console.warn('FIREBASE_URL이 설정되지 않아 이 브라우저에만 임시로 데이터가 표시됩니다.');
+                return;
+            }
+            try {
+                const res = await fetch(`${FIREBASE_URL}/${DATA_PATH}.json`);
+                const data = await res.json();
+                if (data) {
+                    leagueTitle = data.leagueTitle ?? leagueTitle;
+                    teams = data.teams ?? teams;
+                    matches = data.matches ?? matches;
+                    notices = data.notices ?? notices;
+                    // Firebase는 null 값을 가진 필드를 통째로 지워버리므로(undefined로 돌아옴),
+                    // 아직 점수가 없는 경기가 "결과 있음"으로 오인되지 않도록 null로 명시적으로 복원한다.
+                    matches = matches.map(m => ({
+                        ...m,
+                        score1: (m.score1 === undefined) ? null : m.score1,
+                        score2: (m.score2 === undefined) ? null : m.score2
+                    }));
+                } else {
+                    await saveData(); // 최초 실행: 기본값을 Firebase에 저장
+                }
+            } catch (e) {
+                console.error('불러오기 실패:', e);
+            }
+        }
+
+        // 현재 데이터를 Firebase에 저장한다 (모든 기기에 반영됨)
+        async function saveData() {
+            if (!firebaseReady()) {
+                alert('아직 FIREBASE_URL이 설정되지 않았습니다. 코드 상단의 FIREBASE_URL 값을 채워주세요.');
+                return;
+            }
+            const payload = { leagueTitle, teams, matches, notices };
+            try {
+                await fetch(`${FIREBASE_URL}/${DATA_PATH}.json`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (e) {
+                console.error('저장 실패:', e);
+                alert('데이터 저장에 실패했습니다. 인터넷 연결과 FIREBASE_URL을 확인해주세요.');
+            }
+        }
+
+        lucide.createIcons();
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-emerald-400');
+                if(btn.getAttribute('data-target') === tabId) {
+                    btn.classList.add('text-emerald-400');
+                }
+            });
+            renderAll();
+        }
+
+        function openShareModal() {
+            document.getElementById('share-modal').classList.remove('hidden');
+            const urlInput = document.getElementById('share-url-input');
+            if(!urlInput.value) {
+                urlInput.value = window.location.href;
+            }
+            generateQR();
+        }
+
+        function closeShareModal() {
+            document.getElementById('share-modal').classList.add('hidden');
+        }
+
+        // 링크 클립보드 복사 함수
+        function copyShareUrl() {
+            const urlInput = document.getElementById('share-url-input');
+            urlInput.select();
+            urlInput.setSelectionRange(0, 99999); // 모바일 대응
+            
+            navigator.clipboard.writeText(urlInput.value).then(() => {
+                alert('웹 주소가 복사되었습니다! 카카오톡이나 단톡방에 붙여넣기(Ctrl+V) 하세요.');
+            }).catch(err => {
+                alert('복사에 실패했습니다. 주소를 직접 복사해주세요.');
+            });
+        }
+
+        // 카카오톡 공유 (웹 링크 전송 방식)
+        function shareKakao() {
+            const url = document.getElementById('share-url-input').value.trim() || window.location.href;
+            const text = `[${leagueTitle}] 교내 배드민턴 리그 실시간 순위 및 일정 확인하기: ${url}`;
+            
+            if (navigator.share) {
+                navigator.share({
+                    title: leagueTitle,
+                    text: '배드민턴 리그 실시간 일정 및 순위표',
+                    url: url,
+                }).catch(() => {});
+            } else {
+                // PC 등 navigator.share가 안 될 경우 클립보드 복사로 대체
+                navigator.clipboard.writeText(text);
+                alert('공유 문구가 복사되었습니다! 카카오톡 대화창에 붙여넣기 하세요.');
+            }
+        }
+
+        // 이메일로 보내기
+        function shareEmail() {
+            const url = document.getElementById('share-url-input').value.trim() || window.location.href;
+            const subject = encodeURIComponent(`[${leagueTitle}] 경기 일정 및 순위표 안내`);
+            const body = encodeURIComponent(`안녕하세요,\n\n${leagueTitle} 웹사이트 주소입니다.\n아래 링크를 눌러 접속하여 실시간 경기 결과와 순위를 확인하세요!\n\n${url}`);
+            window.location.href = `mailto:?subject=${subject}&body=${body}`;
+        }
+
+        // QR 코드 생성
+        function generateQR() {
+            const url = document.getElementById('share-url-input').value.trim() || window.location.href;
+            const box = document.getElementById('qrcode-box');
+            const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(url)}`;
+            
+            box.innerHTML = `
+                <img src="${qrApiUrl}" alt="Access QR Code" class="w-[140px] h-[140px] rounded-lg shadow-sm border border-slate-200">
+            `;
+        }
+
+        function toggleAdminMode() {
+            if (!isAdmin) {
+                const pwd = prompt("관리자 비밀번호를 입력하세요:");
+                if (pwd === ADMIN_PASSWORD) {
+                    isAdmin = true;
+                    alert("관리자 모드가 활성화되었습니다.");
+                } else if (pwd !== null) {
+                    alert("비밀번호가 틀렸습니다.");
+                    return;
+                } else {
+                    return;
+                }
+            } else {
+                isAdmin = false;
+                alert("관리자 모드가 해제되었습니다.");
+                resetMatchForm();
+            }
+            updateAdminUI();
+        }
+
+        function updateAdminUI() {
+            const btn = document.getElementById('admin-toggle-btn');
+            const btnText = document.getElementById('admin-btn-text');
+            const adminForms = document.querySelectorAll('.admin-only');
+            
+            if (isAdmin) {
+                btn.className = "text-xs bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 text-white font-bold";
+                btnText.innerText = "관리자 모드 중 (로그아웃)";
+                adminForms.forEach(el => el.classList.remove('hidden'));
+                document.getElementById('league-title-input').value = leagueTitle;
+            } else {
+                btn.className = "text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 text-slate-300";
+                btnText.innerText = "관리자 로그인";
+                adminForms.forEach(el => el.classList.add('hidden'));
+            }
+            renderAll();
+        }
+
+        function updateLeagueTitle() {
+            if (!isAdmin) return;
+            const newTitle = document.getElementById('league-title-input').value.trim();
+            if (!newTitle) {
+                alert('대회 타이틀을 입력해주세요.');
+                return;
+            }
+            leagueTitle = newTitle;
+            saveData();
+            updateTitleUI();
+            alert('대회 타이틀이 변경되었습니다.');
+        }
+
+        function updateTitleUI() {
+            document.getElementById('page-title').innerText = leagueTitle;
+            document.getElementById('header-title').innerText = leagueTitle;
+            document.getElementById('home-banner-title').innerText = leagueTitle + " 플랫폼";
+        }
+
+        function addNotice() {
+            if (!isAdmin) return;
+            const input = document.getElementById('notice-title');
+            if(!input.value.trim()) {
+                alert('공지 내용을 입력해주세요.');
+                return;
+            }
+            const today = new Date();
+            const dateStr = String(today.getMonth() + 1).padStart(2, '0') + '.' + String(today.getDate()).padStart(2, '0');
+
+            notices.unshift({
+                id: Date.now().toString(),
+                title: input.value.trim(),
+                date: dateStr
+            });
+            input.value = '';
+            saveData();
+            renderNotices();
+        }
+
+        function deleteNotice(id) {
+            if (!isAdmin) return;
+            if(confirm('이 공지사항을 삭제하시겠습니까?')) {
+                notices = notices.filter(n => n.id !== id);
+                saveData();
+                renderNotices();
+            }
+        }
+
+        function addTeam() {
+            if (!isAdmin) return;
+            const nameInput = document.getElementById('team-name');
+            const playersInput = document.getElementById('team-players');
+            const mottoInput = document.getElementById('team-motto');
+            if(!nameInput.value.trim()) {
+                alert('팀명을 입력해주세요.');
+                return;
+            }
+            teams.push({
+                id: Date.now().toString(),
+                name: nameInput.value.trim(),
+                players: playersInput.value.trim() || '미등록',
+                motto: mottoInput.value.trim() || ''
+            });
+            nameInput.value = '';
+            playersInput.value = '';
+            mottoInput.value = '';
+            saveData();
+            renderAll();
+        }
+
+        function deleteTeam(id) {
+            if (!isAdmin) return;
+            if(confirm('정말 이 팀을 삭제하시겠습니까?')) {
+                teams = teams.filter(t => t.id !== id);
+                saveData();
+                renderAll();
+            }
+        }
+
+        async function editTeamMotto(id) {
+            if (!isAdmin) return;
+            const team = teams.find(t => t.id === id);
+            if (!team) return;
+            const newMotto = prompt(`"${team.name}" 팀의 각오를 입력하세요:`, team.motto || '');
+            if (newMotto === null) return; // 취소
+            team.motto = newMotto.trim();
+            await saveData();
+            renderAll();
+        }
+
+        async function editTeamPlayers(id) {
+            if (!isAdmin) return;
+            const team = teams.find(t => t.id === id);
+            if (!team) return;
+            const newPlayers = prompt(`"${team.name}" 팀의 선수 명단을 입력하세요:`, (team.players && team.players !== '미등록') ? team.players : '');
+            if (newPlayers === null) return; // 취소
+            team.players = newPlayers.trim() || '미등록';
+            await saveData();
+            renderAll();
+        }
+
+        function saveMatch() {
+            if (!isAdmin) return;
+            const editId = document.getElementById('edit-match-id').value;
+            const dateInput = document.getElementById('match-date').value.trim() || '미정 날짜';
+            const t1 = document.getElementById('match-team1').value;
+            const t2 = document.getElementById('match-team2').value;
+            const s1Raw = document.getElementById('match-score1').value.trim();
+            const s2Raw = document.getElementById('match-score2').value.trim();
+
+            if(!t1 || !t2) {
+                alert('두 팀을 모두 선택해주세요.');
+                return;
+            }
+            if(t1 === t2) {
+                alert('동일한 팀끼리는 경기를 할 수 없습니다.');
+                return;
+            }
+
+            let s1 = s1Raw !== "" ? parseInt(s1Raw) : null;
+            let s2 = s2Raw !== "" ? parseInt(s2Raw) : null;
+
+            if ((s1 !== null && s2 === null) || (s1 === null && s2 !== null)) {
+                alert('점수를 모두 입력하거나, 경기 전 상태로 두려면 양쪽 다 비워두세요.');
+                return;
+            }
+
+            if (s1 !== null && s2 !== null && s1 === s2) {
+                alert('배드민턴 경기는 무승부가 없습니다. 점수를 확인해주세요.');
+                return;
+            }
+
+            if (editId) {
+                const match = matches.find(m => m.id === editId);
+                if (match) {
+                    match.date = dateInput;
+                    match.team1 = t1;
+                    match.team2 = t2;
+                    match.score1 = s1;
+                    match.score2 = s2;
+                }
+                alert('경기가 수정되었습니다.');
+            } else {
+                matches.push({
+                    id: Date.now().toString(),
+                    date: dateInput,
+                    team1: t1,
+                    team2: t2,
+                    score1: s1,
+                    score2: s2
+                });
+                alert('경기가 등록되었습니다.');
+            }
+
+            resetMatchForm();
+            saveData();
+            renderAll();
+        }
+
+        function editMatch(id) {
+            const match = matches.find(m => m.id === id);
+            if(!match) return;
+
+            document.getElementById('edit-match-id').value = match.id;
+            document.getElementById('match-date').value = match.date;
+            document.getElementById('match-team1').value = match.team1;
+            document.getElementById('match-team2').value = match.team2;
+            document.getElementById('match-score1').value = (match.score1 !== null && match.score1 !== undefined) ? match.score1 : '';
+            document.getElementById('match-score2').value = (match.score2 !== null && match.score2 !== undefined) ? match.score2 : '';
+
+            document.getElementById('match-form-title').innerHTML = `<i data-lucide="shield-check" class="w-4 h-4"></i> 경기 정보 수정 중`;
+            document.getElementById('match-submit-btn').innerText = "수정 완료";
+            document.getElementById('match-cancel-btn').classList.remove('hidden');
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            lucide.createIcons();
+        }
+
+        function resetMatchToPending(id) {
+            if (!isAdmin) return;
+            const match = matches.find(m => m.id === id);
+            if (!match) return;
+
+            if (confirm('이 경기의 점수를 지우고 다시 "예정" 상태로 되돌리시겠습니까? (순위표 반영도 취소됩니다)')) {
+                match.score1 = null;
+                match.score2 = null;
+                saveData();
+                renderAll();
+            }
+        }
+
+        function moveMatchUp(index) {
+            if (index <= 0) return;
+            let temp = matches[index];
+            matches[index] = matches[index - 1];
+            matches[index - 1] = temp;
+            saveData();
+            renderAll();
+        }
+
+        function moveMatchDown(index) {
+            if (index >= matches.length - 1) return;
+            let temp = matches[index];
+            matches[index] = matches[index + 1];
+            matches[index + 1] = temp;
+            saveData();
+            renderAll();
+        }
+
+        function resetMatchForm() {
+            document.getElementById('edit-match-id').value = '';
+            document.getElementById('match-date').value = '';
+            document.getElementById('match-team1').value = '';
+            document.getElementById('match-team2').value = '';
+            document.getElementById('match-score1').value = '';
+            document.getElementById('match-score2').value = '';
+
+            document.getElementById('match-form-title').innerHTML = `<i data-lucide="shield-check" class="w-4 h-4"></i> 경기 일정 등록 (점수 비워두면 경기 전 상태로 저장)`;
+            document.getElementById('match-submit-btn').innerText = "일정 등록";
+            document.getElementById('match-cancel-btn').classList.add('hidden');
+            lucide.createIcons();
+        }
+
+        function deleteMatch(id) {
+            if (!isAdmin) return;
+            if(confirm('정말 이 경기를 삭제하시겠습니까?')) {
+                matches = matches.filter(m => m.id !== id);
+                saveData();
+                renderAll();
+            }
+        }
+
+        function renderNotices() {
+            const container = document.getElementById('notice-container');
+            container.innerHTML = '';
+
+            if(notices.length === 0) {
+                container.innerHTML = `<li class="text-slate-400 text-center py-2">등록된 공지사항이 없습니다.</li>`;
+                return;
+            }
+
+            notices.forEach(n => {
+                container.innerHTML += `
+                    <li class="flex justify-between items-center border-b pb-2">
+                        <span>${n.title}</span>
+                        <div class="flex items-center space-x-3">
+                            <span class="text-slate-400 text-xs">${n.date}</span>
+                            ${isAdmin ? `<button onclick="deleteNotice('${n.id}')" class="text-slate-400 hover:text-rose-500 transition"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>` : ''}
+                        </div>
+                    </li>
+                `;
+            });
+            lucide.createIcons();
+        }
+
+        function renderStandings() {
+            let stats = {};
+            
+            teams.forEach(t => {
+                stats[t.name] = { 
+                    name: t.name, 
+                    players: t.players || '미등록', 
+                    played: 0, 
+                    win: 0, 
+                    lose: 0, 
+                    pointDiff: 0, 
+                    points: 0 
+                };
+            });
+
+            matches.forEach(m => {
+                if(m.score1 === null || m.score1 === undefined || m.score2 === null || m.score2 === undefined) return;
+
+                if(!stats[m.team1]) stats[m.team1] = { name: m.team1, players: '미등록', played: 0, win: 0, lose: 0, pointDiff: 0, points: 0 };
+                if(!stats[m.team2]) stats[m.team2] = { name: m.team2, players: '미등록', played: 0, win: 0, lose: 0, pointDiff: 0, points: 0 };
+
+                stats[m.team1].played += 1;
+                stats[m.team2].played += 1;
+
+                stats[m.team1].pointDiff += (m.score1 - m.score2);
+                stats[m.team2].pointDiff += (m.score2 - m.score1);
+
+                if(m.score1 > m.score2) {
+                    stats[m.team1].win += 1;
+                    stats[m.team1].points += 1; 
+                    stats[m.team2].lose += 1;
+                } else if(m.score2 > m.score1) {
+                    stats[m.team2].win += 1;
+                    stats[m.team2].points += 1; 
+                    stats[m.team1].lose += 1;
+                }
+            });
+
+            let sortedStats = Object.values(stats).sort((a, b) => {
+                if (b.points !== a.points) return b.points - a.points;
+                return b.pointDiff - a.pointDiff;
+            });
+
+            const tbody = document.getElementById('standings-tbody');
+            tbody.innerHTML = '';
+
+            if(sortedStats.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">등록된 팀이 없습니다.</td></tr>`;
+                return;
+            }
+
+            sortedStats.forEach((st, index) => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 border-b">
+                        <td class="p-4 font-bold ${index === 0 ? 'text-emerald-600' : 'text-slate-600'}">${index + 1}</td>
+                        <td class="p-4">
+                            <span class="font-semibold">${st.name}</span>
+                            <span class="text-xs text-slate-500 ml-1.5">(${st.players})</span>
+                        </td>
+                        <td class="p-4 text-center">${st.played}</td>
+                        <td class="p-4 text-center">${st.win}</td>
+                        <td class="p-4 text-center">${st.lose}</td>
+                        <td class="p-4 text-center ${st.pointDiff > 0 ? 'text-emerald-600' : st.pointDiff < 0 ? 'text-rose-500' : ''}">${st.pointDiff > 0 ? '+' + st.pointDiff : st.pointDiff}</td>
+                        <td class="p-4 text-center font-bold">${st.points}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function renderTeams() {
+            const container = document.getElementById('teams-container');
+            container.innerHTML = '';
+            
+            document.getElementById('home-team-count').innerText = teams.length + '팀';
+
+            const select1 = document.getElementById('match-team1');
+            const select2 = document.getElementById('match-team2');
+            select1.innerHTML = '<option value="">팀 선택 (Home)</option>';
+            select2.innerHTML = '<option value="">팀 선택 (Away)</option>';
+
+            teams.forEach(t => {
+                select1.innerHTML += `<option value="${t.name}">${t.name}</option>`;
+                select2.innerHTML += `<option value="${t.name}">${t.name}</option>`;
+
+                container.innerHTML += `
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 flex justify-between items-start">
+                        <div class="flex-grow">
+                            <h3 class="font-bold text-emerald-600 text-lg">${t.name}</h3>
+                            <div class="flex items-center gap-2 mt-1">
+                                <p class="text-sm text-slate-600 flex-grow">선수: ${t.players}</p>
+                                ${isAdmin ? `<button onclick="editTeamPlayers('${t.id}')" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold whitespace-nowrap" title="선수 수정">수정</button>` : ''}
+                            </div>
+                            <div class="flex items-center gap-2 mt-2">
+                                <p class="text-xs text-slate-500 italic bg-slate-50 border border-slate-100 rounded-lg px-2.5 py-1.5 flex-grow">"${t.motto && t.motto.trim() ? t.motto : '각오 미등록'}"</p>
+                                ${isAdmin ? `<button onclick="editTeamMotto('${t.id}')" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold whitespace-nowrap" title="각오 수정">수정</button>` : ''}
+                            </div>
+                        </div>
+                        ${isAdmin ? `<button onclick="deleteTeam('${t.id}')" class="text-slate-400 hover:text-rose-500 transition ml-2"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ''}
+                    </div>
+                `;
+            });
+            lucide.createIcons();
+        }
+
+        function renderMatches() {
+            const container = document.getElementById('matches-container');
+            container.innerHTML = '';
+
+            if(matches.length === 0) {
+                container.innerHTML = `<div class="bg-white p-6 rounded-xl text-center text-slate-400 text-sm">등록된 경기가 없습니다.</div>`;
+                return;
+            }
+
+            let groups = {};
+            matches.forEach((m, index) => {
+                let dateKey = m.date || '날짜 미정';
+                if(!groups[dateKey]) {
+                    groups[dateKey] = [];
+                }
+                groups[dateKey].push({ match: m, originalIndex: index });
+            });
+
+            let sectionsHtml = '';
+            for (let date in groups) {
+                let cardItems = '';
+                groups[date].forEach(item => {
+                    const m = item.match;
+                    const index = item.originalIndex;
+                    const isFinished = (m.score1 !== null && m.score1 !== undefined && m.score2 !== null && m.score2 !== undefined);
+                    
+                    cardItems += `
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-3">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-xs font-bold text-slate-400 w-5">#${index + 1}</span>
+                                <span class="text-xs ${isFinished ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'} px-2.5 py-1 rounded-full font-medium">
+                                    ${isFinished ? '종료' : '예정'}
+                                </span>
+                                <span class="text-sm font-bold text-slate-800">${m.team1}</span>
+                                <span class="text-xs text-slate-700 font-bold bg-slate-100 px-3 py-1 rounded">
+                                    ${isFinished ? `${m.score1} : ${m.score2}` : 'VS'}
+                                </span>
+                                <span class="text-sm font-bold text-slate-800">${m.team2}</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                ${isAdmin ? `
+                                    <div class="flex border rounded-lg overflow-hidden bg-slate-50">
+                                        <button onclick="moveMatchUp(${index})" ${index === 0 ? 'disabled class="opacity-30 p-1.5"' : 'class="p-1.5 hover:bg-slate-200 transition"' } title="위로 이동"><i data-lucide="chevron-up" class="w-4 h-4"></i></button>
+                                        <button onclick="moveMatchDown(${index})" ${index === matches.length - 1 ? 'disabled class="opacity-30 p-1.5"' : 'class="p-1.5 hover:bg-slate-200 transition"' } title="아래로 이동"><i data-lucide="chevron-down" class="w-4 h-4"></i></button>
+                                    </div>
+
+                                    <button onclick="editMatch('${m.id}')" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold px-3 py-1.5 rounded-lg transition flex items-center gap-1">
+                                    <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> ${isFinished ? '수정' : '결과 입력'}
+                                    </button>
+                                    
+                                    ${isFinished ? `
+                                        <button onclick="resetMatchToPending('${m.id}')" class="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold px-2.5 py-1.5 rounded-lg transition" title="예정 상태로 되돌리기">예정으로</button>
+                                    ` : ''}
+
+                                    <button onclick="deleteMatch('${m.id}')" class="text-slate-400 hover:text-rose-500 p-1.5 transition" title="삭제"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                sectionsHtml += `
+                    <div class="bg-slate-100/70 border border-slate-200/80 rounded-2xl p-4 md:p-5 space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-200 pb-2.5">
+                            <div class="flex items-center space-x-2">
+                                <i data-lucide="calendar" class="w-4 h-4 text-emerald-600"></i>
+                                <h3 class="font-bold text-slate-800 text-base">${date}</h3>
+                            </div>
+                            <span class="text-xs text-slate-500 font-medium">총 ${groups[date].length}경기</span>
+                        </div>
+                        <div class="space-y-2.5">
+                            ${cardItems}
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = `
+                <div class="space-y-4">
+                    <div class="text-xs text-slate-500 px-1">
+                        <span>날짜별로 구역이 나뉘어 표시되며, 관리자 모드에서 위/아래 버튼으로 순서를 변경할 수 있습니다.</span>
+                    </div>
+                    ${sectionsHtml}
+                </div>
+            `;
+
+            lucide.createIcons();
+        }
+
+        function renderAll() {
+            updateTitleUI();
+            renderNotices();
+            renderTeams();
+            renderMatches();
+            renderStandings();
+        }
+
+        // 사용자가 입력 폼에 타이핑 중일 때는 화면을 새로 그리지 않기 위한 체크
+        function isTypingInForm() {
+            const tag = document.activeElement && document.activeElement.tagName;
+            return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+        }
+
+        async function init() {
+            await loadData();
+            renderAll();
+
+            // 관리자가 아닌 화면(학생들)은 4초마다 공유 저장소에서 최신 데이터를 다시 불러와
+            // 다른 기기(선생님)의 변경 사항이 자동으로 반영되도록 한다.
+            setInterval(async () => {
+                if (isAdmin || isTypingInForm()) return;
+                await loadData();
+                renderAll();
+            }, 4000);
+        }
+
+        init();
+    </script>
+</body>
+</html>
